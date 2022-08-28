@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>generator niepotrzebnych i bezsensownych wyjasnien</h2>
+
+
+  <label for="flightDate">Date:</label><br>
+  <input type="date" id="flightDate" name="flightDate"><br>
+  <label for="dest">Destination:</label><br>
+  <input type="text" id="dest" name="dest"><br><br>
+
+  <input type="radio" id="short" name="tal" value="25">
+  <label for="short">Short turnaround (25min)</label><br>
+  <input type="radio" id="long" name="tal" value="35">
+  <label for="long">Long turnaround (35min ONLY, NOT FOR 35min+)</label><br>
+
+  <label for="appt">STD:</label><br>
+  <input type="time" id="std" name="std"><br>
+  <label for="flightNr">Flight Nr(np. FR1234):</label><br>
+  <input type="text" id="flightNr" name="flightNr"><br><br>
+  <label for="dl93">DL93 in min (ex. 1h 23min = 83):</label><br>
+  <input type="number" id="dl93" name="dl93" min="0" value="0"><br><br>
+
+  <input type="radio" id="dl89" name="delay" value="DL89">
+  <label for="dl89">DL89 - Ramp congestion</label><br>
+  <input type="radio" id="dl62" name="delay" value="DL62">
+  <label for="dl62">DL62 - Fuel Supervision</label><br>
+  <input type="radio" id="dl75" name="delay" value="DL75">
+  <label for="dl75">DL75 - De-icing</label><br>
+  <input type="radio" id="dl19" name="delay" value="DL19">
+  <label for="dl19">DL19 - PRM</label><br><br>
+
+  <label for="dl00">Delay in min (ex. 1h 23min = 83):</label><br>
+  <input type="number" id="dl00" name="dl00" min="0" value="0"><br><br>
+  
+  <button type="button" onclick="myFunction()">GENERATE</button><br><br>
+
+
+<script>
+    function myFunction() {
+      var dl93text = "";
+      var std= document.getElementById("std").value; 
+      var dl = document.querySelector('input[name="delay"]:checked').value;   
+      var is93 = parseInt(document.getElementById("dl93").value) != 0;
+      var isCcr = 35 == parseInt(document.querySelector('input[name="tal"]:checked').value);
+      var stdH = parseInt(std.charAt(0) + std.charAt(1));
+      var stdM = parseInt(std.charAt(3) + std.charAt(4));
+      var atd = new Czas(stdH, stdM);
+      var delayMinutes = parseInt(document.getElementById("dl00").value);
+      var ltarrMinutes = parseInt(document.getElementById("dl93").value)
+      var delayCzas = new Czas(0,0);
+      delayCzas.addMinutes(delayMinutes);
+      var ltarrCzas = new Czas(0,0);
+      ltarrCzas.addMinutes(ltarrMinutes);
+      atd.addMinutes(delayMinutes + ltarrMinutes);
+      var turnaroundTime = 0;
+      var ataCzas = new Czas(stdH, stdM);
+      if(isCcr){turnaroundTime = 35;} else {turnaroundTime = 25;}
+      ataCzas.removeMinutes(turnaroundTime);
+      ataCzas.addMinutes(ltarrMinutes);
+      var dl19minutes = 0;
+      var dl75minutes = 0;
+      var dl89minutes = 0;
+      var dl62minutes = 0;
+      var delayText = "";
+
+      switch(dl) {
+        case "DL89":
+          dl89minutes = delayMinutes;
+          delayText = "DL89 - Awaiting pushback clearance."
+          break;
+        case "DL75":
+          dl75minutes = delayMinutes;
+          delayText = "DL75 - De-icing"
+          break;
+        case "DL62":
+          dl62minutes = delayMinutes;
+          delayText = "DL62 - Fuel Supervision";
+          break;
+        case "DL19":
+          dl19minutes = delayMinutes;
+          delayText = "DL19 - extended boarding due to WCH on departure";
+          break;
+        default:
+          break;
+      } 
+      
+      var inblockTime = ataCzas.getTime();
+      
+      ataCzas.addMinutes(2); //first pax off board
+      var fpofbTime = ataCzas.getTime();
+      
+      ataCzas.addMinutes(7); //last pax off board
+      var lpofbTime = ataCzas.getTime();
+      
+      ataCzas.addMinutes(1 + turnaroundTime - 25); //first pax on board
+      var fponbTime = ataCzas.getTime();
+      
+      ataCzas.addMinutes(10 + dl19minutes); //last pax on board
+      var lponbTime = ataCzas.getTime();
+      
+      ataCzas.addMinutes(3 + dl62minutes); // doors cloased
+      var dcTime = ataCzas.getTime();
+      
+      ataCzas.addMinutes(2 + dl75minutes + dl89minutes); //pushback
+      var pbbTime = ataCzas.getTime();
+      
+
+
+      document.getElementById("p1").innerHTML = "Date: " + document.getElementById("flightDate").value;
+      document.getElementById("p2").innerHTML = "Flighr number: " + document.getElementById("flightNr").value;
+      document.getElementById("p3").innerHTML = "STD: " + std;
+      document.getElementById("p4").innerHTML = "ATD: " + atd.getTime();
+      if(is93){dl93text = "<br>DL93/" + ltarrCzas.getTime().replace(":","");}
+      document.getElementById("p5").innerHTML = dl + "/" + delayCzas.getTime().replace(":", "") + dl93text;
+      if(is93){dl93text = "DL93 - Late arrival<br>"}
+      document.getElementById("p6").innerHTML = dl93text + delayText; 
+      document.getElementById("p7").innerHTML = 
+        inblockTime + " - AIBT<br>" + fpofbTime + " - First PAX off board<br>" + 
+        lpofbTime + " - Last PAX off board<br>" + fponbTime + " - First PAX on board<br>" + 
+        lponbTime + " - Last PAX on board<br>" + dcTime + " - Doors closed<br>" + pbbTime + " - Pushback<br><br>";
+    }
+
+    class Czas{
+      constructor(hours, minutes){
+        this.hours = hours;
+        this.minutes = minutes;
+      }
+
+      removeMinutes(min){
+        var sum = this.minutes - min;
+        if(sum < 0){
+          this.minutes = 60 + (sum % 60);
+          this.hours += Math.floor(sum/60);
+        }else{ this.minutes = sum;}
+
+      }
+
+      addMinutes(min){
+        var sum = this.minutes + min;
+        if(sum >= 60){
+          this.minutes = sum % 60;
+          this.hours +=  Math.floor(sum / 60);
+        }else{
+          this.minutes = sum;
+        }
+        if(this.hours > 23){ this.hours = this.hours - 24;}
+      }
+
+      getTime(){
+        var time ="";
+        if(this.hours < 10){
+          time += "0" + this.hours.toString() + ":";
+        }else{
+          time += this.hours.toString() + ":";
+        }
+        if(this.minutes < 10){
+          time += "0" + this.minutes.toString();
+        }else{
+          time += this.minutes.toString();
+        }
+        return time;
+      }
+      
+    }
+</script>
+    
+<p id="p1"></p>
+<p id="p2"></p>
+<p id="p3"></p>
+<p id="p4"></p>
+<p id="p5"></p>
+<p id="p6"></p>
+<p id="p7"></p>
+<p>ogolnie to dziala tylko dla 93 i jednego z tych czterech kodow, polecam sprawdzic i ewentualnie dostosowac czasy</p>
+
+</body>
+</html>
+
